@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>D3 Example</title>
+	<script type="text/javascript" src="https://d3js.org/d3.v3.js"></script>
+	<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<style >
+
+	.axis path,
+	.axis line
+	{
+		fill:none;
+		stroke:grey;
+		shape-rendering: crispEdges;
+	}
+	
+	.trendline_investment{
+		fill:none;
+		stroke: #8CBEB2;
+		stroke-width:4px;
+	}
+
+	.area_investment{
+		fill:rgba(140,190,178,0.3);
+		stroke: #ccc;
+		stroke-width:1px;
+	}
+
+	.trendline_gain{
+		fill:none;
+		stroke: #F2EBBF;
+		stroke-width:4px;
+	}
+
+	.area_gain{
+		fill:rgba(242,235,191,0.3);
+		stroke: #ccc;
+		stroke-width:1px;
+	}
+
+	.focus
+	{
+		box-shadow: 10px -10px 5px #CCC;
+		opacity: 0.5;
+
+	}
+
+	.explore__map__tooltip
+    {
+        display: inline-block;
+        border-bottom: 1px solid black;
+        color: black;
+        padding: 5px 5px;
+        border-radius: 6px;
+        z-index: 1;
+        opacity: 0.8;
+        text-align: left;
+        position: absolute;
+        
+    }
+
+    .tooltip_border_investment
+    {
+    	border: 2px solid #8CBEB2;
+    }
+
+    .tooltip_border_gain
+    {
+    	border: 2px solid #F2EBBF;
+    }
+
+    .scroll
+    {
+    	overflow-x: scroll;
+    }
+
+    .dot_investment {
+	  height: 15px;
+	  width: 15px;
+	  background-color: #8CBEB2;
+	  border-radius: 50%;
+	  display: inline-block;
+	  position: absolute;
+	    top: 2px;
+	    left: -21px;
+
+	}
+
+	.dot_gain {
+	  height: 15px;
+	  width: 15px;
+	  background-color: #F2EBBF;
+	  border-radius: 50%;
+	  display: inline-block;
+	  position: absolute;
+	  top: 23px;
+	  left: -21px;
+
+	}
+	</style>
+</head>
+<body>
+<div class="container">
+	<div class="row">
+	  	<div class="col-xs-12">
+	  		<div id="chart"></div>
+	  	</div>	
+  	</div>	
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+
+<script>
+
+	
+
+	var w = 600;
+	var h = 550;
+
+var margin = {
+	top:20,
+	bottom:80,
+	left:40,
+	right:20
+};
+
+var width = w - margin.left-margin.right;
+var height = h - margin.top - margin.bottom;
+var data = [
+	{investment:0,gain:0,year:0},
+	{investment:1000,gain:1500,year:1},
+	{investment:2000,gain:2500,year:2},
+	{investment:3000,gain:3500,year:3},
+	{investment:4000,gain:4500,year:4},
+	{investment:5000,gain:5500,year:5},
+	{investment:6000,gain:6500,year:6},
+];
+
+
+var svg = d3.select('#chart').append('svg')
+			.attr("width",w)
+			.attr("height",h);
+
+var chart = svg.append("g")
+				.classed("display",true)
+				.attr("transform","translate("+margin.left+","+margin.top+")");
+
+
+var dataIntermediate=['investment','gain'].map(function(key,i){
+    return data.map(function(d,j){
+        return {x: d['year'], y: d[key] };
+    })
+})
+
+var dataStackLayout=d3.layout.stack()(dataIntermediate)
+var color = d3.scale.category20();
+
+
+var x = d3.scale.linear()
+		.domain([0, d3.max(data,function(d){
+			return d.year;
+		})])
+		.range([0,width]);
+
+var y = d3.scale.linear()
+		.domain([0,d3.max(data,function(d){
+			return d.gain;
+		})])
+		.range([height,0]);
+
+var xAxis = d3.svg.axis()
+			.scale(x)
+			.orient("bottom")
+			.ticks(5);
+
+var line = d3.svg.line()
+			.x(function(d){
+				return x(d.x);
+			})
+			.y(function(d){
+				return y(d.y);
+			})
+			.interpolate("monotone");
+
+var label = d3.select("#chart").append("g")
+			.style("position", "absolute")
+			.style("top", "50px")
+			.style("left", "100px")
+						
+var label_investment =  label
+						.append("div")
+						.append("text")
+						.attr("dy", ".35em")
+						.html("<b>Investment</b>")
+						.append("span")
+						.classed("dot_investment", true)
+						
+
+
+var label_gain = label.append("div")
+						.append("text")
+						.attr("dy", ".35em")
+						.html("<b>Gain</b>")
+						.append("span")
+						.classed("dot_gain", true)
+
+
+var area = d3.svg.area()
+			.x(function(d){
+				return x(d.x);
+			})
+			.y0(function(d){
+				if(d.y0 != 0)
+				{
+					return y(d.y0)-3
+				}
+				return y(d.y0)
+
+				})
+			.y1(function(d){
+				return y(d.y);
+			})
+			.interpolate("monotone");
+
+var bisectDate = d3.bisector(function(d) { return d.x; }).left;
+
+ var focus = chart.append("circle")                                 
+        .attr("class", "focus")                                                          
+        .style("display", "none")
+        .attr("id","fo")                       
+        .attr("r", 10)
+
+tooltip = d3.select("body")
+	              .append("div")
+	              .classed("explore__map__tooltip",true)
+	              .attr('id', 'tool')
+	              .style("z-index", "1000")
+	              .style("visibility", "hidden")
+	              .style("background", "white")
+	              .attr('data-toggle', 'tooltip')
+	              .attr('title', 'Hurray')
+
+function mousemove1() {                                 
+        var x0 = x.invert(d3.mouse(this)[0]),              
+            i = bisectDate(dataStackLayout[0], x0, 1)                   
+            d0 = dataStackLayout[0][i - 1]                             
+            d1 = dataStackLayout[0][i]                                 
+            d = x0 - d0.x > d1.x - x0 ? d1 : d0; 
+        focus 
+        	.attr('fill','#8CBEB2')                         
+            .attr("cx",x(d.x))
+            .attr("cy",y(d.y))
+
+        var str = "Investment: <b>" + d.y+"</b>";
+	        tooltip.html(str);
+	        tooltip.style("top", (d3.event.pageY-10)+"px").style("left",(d3.event.pageX+10)+"px");
+	        tooltip.classed('tooltip_border_investment', false)
+	        	.classed('tooltip_border_gain', false)
+	        tooltip
+	        .classed('tooltip_border_investment', true)
+	        .style("visibility", "visible");                     
+    }
+
+function mousemove2() {                               
+        var x0 = x.invert(d3.mouse(this)[0]),              
+            i = bisectDate(dataStackLayout[0], x0, 1)                   
+            d0 = dataStackLayout[1][i - 1]                             
+            d1 = dataStackLayout[1][i]                                 
+            d = x0 - d0.x > d1.x - x0 ? d1 : d0; 
+        focus 
+        	.attr('fill','#F2EBBF')                         
+            .attr("cx",x(d.x))
+            .attr("cy",y(d.y)) 
+
+
+        var str = "Gain: <b>" + d.y+"</b>";
+	        tooltip.html(str);
+	        tooltip.style("top", (d3.event.pageY-10)+"px").style("left",(d3.event.pageX+10)+"px");
+	        tooltip.classed('tooltip_border_investment', false)
+	        	.classed('tooltip_border_gain', false)
+	        return tooltip
+	        .classed('tooltip_border_gain', true)
+	        .style("visibility", "visible");  
+    } 
+
+ function updateDimensions(winWidth) {
+
+	   w = winWidth*0.6;
+	   h = 550;
+
+	   if(winWidth <= 990)
+	   {
+	   	w = winWidth*0.9;
+	   }
+
+	   if(winWidth < 600 || screen.width < 600)
+	   {
+	   		h = 400;
+	   		w = 550;
+	   		$("#chart").addClass("scroll");
+	   }
+
+	   width = w - margin.left-margin.right;
+	   height = h - margin.top - margin.bottom;
+
+		x
+			.range([0,width]);
+
+		y
+			.range([height,0]);
+	}
+
+
+function drawAxis(params)
+	{
+		if(params.initialize === true)
+		{
+			svg
+				.attr("width",w)
+				.attr("height",h);
+
+			console.log("in here")
+			this.append("g")
+				.classed("x axis",true)
+				.attr("transform","translate(0,"+height+")")
+				.call(params.axis.x);
+
+			this.select(".x.axis")
+				.append("text")
+				.attr("x",0)
+				.attr("y",0)
+				.classed("time-text",true)
+				.style("text-anchor","middle")
+				.attr("transform","translate("+width/2+",70)")
+				.text("Year");
+		}
+
+		else
+		{
+
+			svg
+				.attr("width",w)
+				.attr("height",h);
+
+			this.select(".x.axis")
+				.attr("transform","translate(0,"+height+")")
+				.call(params.axis.x);
+
+			this.select(".time-text")
+				.attr("transform","translate("+width/2+",70)")
+		}
+
+	}
+
+function plot(params)
+{	
+	updateDimensions(window.innerWidth);
+	drawAxis.call(this,params);
+
+	
+
+	for(i=0;i<2;i++)
+	{
+		if(i%2 == 0)
+		{
+			class_str = 'investment'
+			color = '#8CBEB2'
+		}
+		else
+		{
+			class_str = 'gain'
+			color = '#F2EBBF'
+		}
+
+		//enter
+		this.selectAll(".area_"+class_str)
+			.data([params.data[i]])
+			.enter()
+				.append("path")
+				.classed("area_"+class_str,true)
+
+		this.selectAll(".trendline_"+class_str)
+			.data([params.data[i]])
+			.enter()
+				.append("path")
+				.classed("trendline_"+class_str,true)
+
+		this.selectAll(".point_"+class_str)
+		.data(params.data[i])
+		.enter()
+			.append("circle")
+			.classed("point_"+class_str,true)
+			.attr("r",5)
+			.attr('fill',color);
+
+		//update
+		this.selectAll(".area_"+class_str)
+			.attr("d",function(d){
+				return area(d);
+			})
+			.on("mouseover", function() { focus.style("display", null);
+		})
+	        .on("mouseout", function() { focus.style("display", "none");
+	        tooltip.style("visibility","hidden"); })
+
+
+		this.selectAll(".trendline_"+class_str)
+			.attr("d",function(d){
+				return line(d);
+			});
+
+		this.selectAll(".point_"+class_str)
+			.attr("cx",function(d){
+				return x(d.x);
+			})
+			.attr("cy",function(d){
+				return y(d.y);
+			})
+			.on("mouseover", function() { focus.style("display", null);})
+	        .on("mouseout", function() { focus.style("display", "none");  })
+
+		//exit
+		this.selectAll(".area_"+class_str)
+			.data([params.data[i]])
+			.exit()
+			.remove();
+
+		this.selectAll(".trendline_"+class_str)
+			.data([params.data[i]])
+			.exit()
+			.remove();
+
+		this.selectAll(".point_"+class_str)
+			.data(params.data[i])
+			.exit()
+			.remove();
+	}
+
+	this.select('.area_investment')
+		.on('mousemove',mousemove1)
+
+	this.select('.area_gain')
+		.on('mousemove',mousemove2)
+
+
+}
+
+plot.call(chart,{
+	data:dataStackLayout,
+	axis:{
+		x:xAxis,
+	},
+	initialize:true,
+});
+
+
+function render()
+	{
+
+		if(window.innerWidth >= 600)
+			{
+				$("#chart").removeClass("scroll")
+
+			}
+		else
+			{
+				h = 400
+		   	w = 550
+				$("#chart").addClass("scroll")
+			}
+    plot.call(chart,{
+          data:dataStackLayout,
+          axis:{
+            x:xAxis,
+          },
+          initialize:false,
+    });
+}
+window.onresize = render;
+
+</script>
+
+</body>
+</html>
