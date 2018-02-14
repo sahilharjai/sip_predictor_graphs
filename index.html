@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>D3 Example</title>
+	<script type="text/javascript" src="https://d3js.org/d3.v3.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<style >
+
+	body{
+		text-align: center;
+	}
+
+	.bar {
+		fill:purple;
+		shape-rendering: crispEdges;
+	}
+
+	.axis path,
+	.axis line
+	{
+		fill:none;
+		stroke:#ccc;
+		shape-rendering: crispEdges;
+	}
+
+	.gridlines path,
+	.gridlines line
+	{
+		fill:none;
+		stroke:#ccc;
+		shape-rendering: crispEdges;
+	}
+
+	.explore__map__tooltip
+    {
+        display: inline-block;
+        border-bottom: 1px solid black;
+        color: black;
+        padding: 5px 5px;
+        border-radius: 6px;
+        z-index: 1;
+        opacity: 0.8;
+        text-align: left;
+        position: absolute;
+        
+    }
+
+    .tooltip_total_investment
+    {
+    	border: 2px solid #8B008B;
+    }
+
+    .tooltip_total_corpus
+    {
+    	border: 2px solid #006600;
+    }
+
+    .bar-label
+    {
+    	font-weight:bolder;
+    }
+
+    .scroll
+    {
+    	overflow-x: scroll;
+    }
+    
+
+	</style>
+</head>
+<body>
+
+<div id="bar_chart">
+	
+</div>
+
+
+
+<script>
+
+var h = 550;
+var w = 800;
+
+var margin = {
+	top:40,
+	bottom:80,
+	left:80,
+	right:50
+};
+
+var x_axis_offset = 100;
+var width = w - margin.left-margin.right;
+var height = h - margin.top - margin.bottom;
+var DictData = [
+	{key:"Total Investment", value:230000 },
+	{key:"Total Corpus", value:330000 },
+];
+
+var x = d3.scale.ordinal()
+		  .domain(DictData.map(function(entry){
+		  	return entry.key
+		  }));
+		  
+
+var max_val = d3.max(DictData,function(d){
+		  	return d.value;
+		  })
+
+var y = d3.scale.linear()
+		  .domain([0,max_val])
+
+
+var svg = d3.select('#bar_chart').append('svg')
+			.attr("id","chart")
+			.attr("width",w)
+			.attr("height",h);
+
+var chart = svg.append("g")
+				.classed("display",true)
+				.attr("transform","translate("+margin.left+","+margin.top+")");
+
+
+var ordinalColorScale = d3.scale.category20();
+
+var xAxis = d3.svg.axis()
+			.scale(x)
+			.orient("bottom");
+
+var yAxis = d3.svg.axis()
+			.scale(y)
+			.ticks(3)
+			.orient("left");
+
+var yGridLines = d3.svg.axis()
+
+tooltip = d3.select("body")
+	              .append("div")
+	              .classed("explore__map__tooltip",true)
+	              .attr('id', 'tool')
+	              .style("z-index", "1000")
+	              .style("visibility", "hidden")
+	              .style("background", "white")
+	              .style("display", null);
+
+function drawAxis(params){
+
+	svg
+		.attr("width",w)
+		.attr("height",h);
+
+	if(params.initialize === true)
+	{
+		this.append("g")
+		.classed("gridlines",true)
+		.attr("transform","translate(0,0)")
+		.call(params.gridlines);
+
+		this.append("g")
+		.classed("x axis",true)
+		.attr("transform","translate("+0+","+ height +")")
+		.call(params.axis.x)
+			.selectAll("text")
+				.classed("x-axis-label",true)
+				.style("text-anchor","middle")
+				.attr("dx",-55)
+				.attr("dy",18)
+				.attr("transform","translate(0,0)");
+
+		this.append("g")
+			.classed("y axis",true)
+			.attr("transform","translate(0,0)")
+			.call(params.axis.y);
+
+
+	}
+	else if(params.initialize === false)
+	{
+		this.selectAll("g.x.axis")
+			.transition()
+			.duration(500)
+			.ease("bounce")
+			.delay(500)
+			.call(params.axis.x)
+			.attr("transform","translate("+0+","+ height +")");
+
+		this.selectAll(".x-axis-label")
+			.style("text-anchor","middle")
+			.attr("dx",-55)
+			.attr("dy",18)
+			.attr("transform","translate(0,0)");
+
+		this.selectAll("g.y.axis")
+			.transition()
+			.duration(500)
+			.ease("bounce")
+			.delay(500)
+			.call(params.axis.y);
+
+		this.selectAll(".gridlines")
+		    .attr("transform","translate(0,0)")
+		    .call(params.gridlines);
+
+	}
+	
+
+}
+
+function updateDimensions(winWidth) {
+
+	   w = winWidth*0.6;
+	   h = 550;
+
+	   if(winWidth <= 990)
+	   {
+	   	w = winWidth*0.9;
+	   }
+
+	   if(winWidth < 600 || screen.width < 600)
+	   {
+	   		h = 400;
+	   		w = 550;
+	   		$("#bar_chart").addClass("scroll");
+	   }
+
+	   width = w - margin.left-margin.right;
+	   height = h - margin.top - margin.bottom;
+
+		x
+			.rangeBands([x_axis_offset,width]);
+
+		y
+			.range([height,0]);
+
+		yGridLines
+				 .scale(y)
+				 .tickSize(-width,0,0)
+				 .tickFormat("")
+				 .orient("left");
+	}
+
+function plot(params)
+{
+	updateDimensions(window.innerWidth);
+	drawAxis.call(this,params);
+	
+	//enter
+	this.selectAll(".bar")
+		.data(params.data)
+		.enter()
+			.append("rect")
+			.attr("class","bar")
+			.style("fill", function(d,i){
+				if(i%2==0)
+				{
+					return '#8B008B'
+				}
+				else
+				{
+					return '#006600'
+				}
+			})
+			.on("mouseover",function(d,i){
+				var str = d.key+" <b>" + d.value+"</b>";
+		        tooltip.html(str);
+		        tooltip.classed('tooltip_total_investment', false)
+		        	.classed('tooltip_total_corpus', false)
+
+		        	if(i%2 == 0)
+		        	{
+		        		tooltip
+					        .classed('tooltip_total_investment', true)
+					        .style("visibility", "visible");
+		        	}
+		        	else
+		        	{
+		        		tooltip
+					        .classed('tooltip_total_corpus', true)
+					        .style("visibility", "visible");
+		        	}
+		        
+			})
+			.on("mousemove", function()
+	      	{
+	      		return tooltip.style("top", (d3.event.pageY-10)+"px").style("left",(d3.event.pageX+10)+"px");
+	      	})
+			.on("mouseout",function(d,i){
+				tooltip.style("visibility", "hidden")
+				tooltip.style("display", null)
+			});
+
+	this.selectAll(".bar-label")
+	.data(params.data)
+	.enter()
+		.append("text")
+		.classed("bar-label",true);
+		
+
+	//update
+	this.selectAll(".bar")
+		.transition()
+		.duration(500)
+		.ease("bounce")
+		.delay(500)
+		.attr("x",function(d,i){
+			return x(d.key);
+		})
+		.attr("y",function(d,i){
+			return y(d.value);
+		})
+		.attr("width",function(d,i){
+			return 120;
+		})
+		.attr("height",function(d){
+			return height - y(d.value);
+		})
+
+
+	this.selectAll(".bar-label")
+		.transition()
+		.duration(500)
+		.ease("bounce")
+		.delay(500)
+		.attr("x",function(d,i){
+			return x(d.key) + (75/2);
+		})
+		.attr("y",function(d,i){
+			return y(d.value) - 5
+		})
+		.text(function(d){
+			return d.value;
+		});
+	
+
+	//exit
+	this.selectAll(".bar")
+		.data(params.data)
+		.exit()
+			.remove();
+
+	this.selectAll(".bar-label")
+		.data(params.data)
+		.exit()
+			.remove();
+}
+
+plot.call(chart,{
+	data:DictData,
+	axis:{
+		x:xAxis,
+		y:yAxis
+	},
+	gridlines:yGridLines,
+	initialize:true
+});
+
+function render()
+	{
+
+		if(window.innerWidth >= 600)
+		{
+			$("#bar_chart").removeClass("scroll")
+
+		}
+		else
+		{
+			h = 400
+		   	w = 550
+			$("#bar_chart").addClass("scroll")
+		}
+
+    plot.call(chart,{
+          data:DictData,
+          axis:{
+            x:xAxis,
+            y:yAxis
+          },
+          gridlines: yGridLines,
+          initialize:false,
+    });
+}
+window.onresize = render;
+
+</script>
+
+</body>
+</html>
